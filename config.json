@@ -1,0 +1,11 @@
+{
+  "cpu_limit": 80,
+  "memory_limit": 75,
+  "temp_limit": 70,
+  "gpu_limit": 50.0,
+  "log_path": "logs/system.log",
+  "json_path": "logs/latest.json",
+  "max_log_size_kb": 500,
+  "rotate_logs": true,
+  "enable_color_output": true
+}
