@@ -3,139 +3,865 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Monitor Pro</title>
+    <title>Security Monitor Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg: #0f172a; --card: #1e293b; --text: #e2e8f0; --accent: #3b82f6; --danger: #ef4444; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        
-        /* Header */
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid #334155; padding-bottom: 20px; }
-        .status-dot { height: 10px; width: 10px; background-color: #22c55e; border-radius: 50%; display: inline-block; margin-right: 5px; box-shadow: 0 0 10px #22c55e; }
+        /* ─── TOKENS ─────────────────────────────────────────────── */
+        :root {
+            --bg:        #080c10;
+            --bg2:       #0d1117;
+            --panel:     #0d1520;
+            --border:    #1a2535;
+            --border2:   #243247;
+            --text:      #c9d6e3;
+            --muted:     #4a6080;
+            --accent:    #00d4ff;
+            --green:     #00ff88;
+            --amber:     #ffb300;
+            --red:       #ff3b3b;
+            --purple:    #a855f7;
+            --mono:      'Share Tech Mono', monospace;
+            --sans:      'Rajdhani', sans-serif;
+        }
 
-        /* Metrics Grid */
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: var(--card); padding: 20px; border-radius: 12px; border: 1px solid #334155; }
-        .card h3 { margin: 0 0 10px 0; font-size: 0.9rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-        .value { font-size: 2.5rem; font-weight: bold; }
-        .unit { font-size: 1rem; color: #64748b; }
+        /* ─── RESET & BASE ───────────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        /* Chart Section */
-        .chart-container { background: var(--card); padding: 20px; border-radius: 12px; height: 300px; border: 1px solid #334155; margin-bottom: 30px; }
+        body {
+            font-family: var(--sans);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            font-size: 15px;
+            line-height: 1.5;
+            /* Subtle scanline effect */
+            background-image: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,212,255,0.015) 2px,
+                rgba(0,212,255,0.015) 4px
+            );
+        }
 
-        /* Logs */
-        .logs { background: #000; padding: 15px; border-radius: 8px; font-family: monospace; height: 150px; overflow-y: auto; color: #22c55e; font-size: 0.85rem; border: 1px solid #334155; }
+        /* ─── LAYOUT ─────────────────────────────────────────────── */
+        .app { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        /* ─── HEADER ─────────────────────────────────────────────── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            background: var(--panel);
+            border: 1px solid var(--border2);
+            border-top: 2px solid var(--accent);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--green), var(--accent));
+            background-size: 200%;
+            animation: sweep 3s linear infinite;
+        }
+        @keyframes sweep {
+            0% { background-position: 0% }
+            100% { background-position: 200% }
+        }
+
+        .header-left { display: flex; align-items: center; gap: 14px; }
+
+        .logo {
+            font-family: var(--mono);
+            font-size: 1.3rem;
+            color: var(--accent);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        .logo span { color: var(--green); }
+
+        .badge {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border: 1px solid var(--green);
+            color: var(--green);
+            border-radius: 2px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 20px; }
+
+        .live-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--green);
+        }
+        .live-dot {
+            width: 8px; height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--green);
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--green); }
+            50% { opacity: 0.4; box-shadow: 0 0 2px var(--green); }
+        }
+
+        #timestamp {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        /* ─── STAT CARDS ROW ─────────────────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 18px 20px;
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            height: 2px;
+            width: var(--fill, 0%);
+            background: var(--bar-color, var(--accent));
+            transition: width 0.6s ease;
+        }
+        .stat-card.warning { border-color: var(--amber); }
+        .stat-card.critical { border-color: var(--red); }
+
+        .stat-label {
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+        }
+        .stat-value {
+            font-family: var(--mono);
+            font-size: 2.4rem;
+            font-weight: 400;
+            line-height: 1;
+            color: var(--accent);
+            transition: color 0.3s;
+        }
+        .stat-value.warn { color: var(--amber); }
+        .stat-value.crit { color: var(--red); }
+
+        .stat-unit {
+            font-size: 1rem;
+            color: var(--muted);
+            margin-left: 2px;
+        }
+        .stat-sub {
+            margin-top: 6px;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--muted);
+        }
+
+        /* ─── MIDDLE GRID ────────────────────────────────────────── */
+        .mid-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* ─── PANEL BASE ─────────────────────────────────────────── */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+        }
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .panel-title {
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--accent);
+        }
+        .panel-body { padding: 16px 18px; }
+
+        /* ─── CHART ──────────────────────────────────────────────── */
+        .chart-wrap { height: 240px; position: relative; }
+
+        /* ─── GPU CARD ───────────────────────────────────────────── */
+        .gpu-panel { display: flex; flex-direction: column; }
+
+        .gpu-info {
+            padding: 16px 18px;
+            flex: 1;
+        }
+        .gpu-name {
+            font-family: var(--mono);
+            font-size: 0.8rem;
+            color: var(--text);
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+        .gpu-usage-bar {
+            margin-top: 12px;
+        }
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-family: var(--mono);
+            font-size: 0.7rem;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+        .bar-track {
+            height: 6px;
+            background: var(--border2);
+            border-radius: 0;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            background: var(--purple);
+            box-shadow: 0 0 6px var(--purple);
+            transition: width 0.5s ease;
+        }
+
+        .gpu-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+            font-family: var(--mono);
+            font-size: 0.68rem;
+            padding: 3px 10px;
+            border: 1px solid var(--green);
+            color: var(--green);
+            text-transform: uppercase;
+        }
+
+        /* ─── BOTTOM GRID ────────────────────────────────────────── */
+        .bottom-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        /* ─── PROCESS TABLE ──────────────────────────────────────── */
+        .proc-table { width: 100%; border-collapse: collapse; }
+        .proc-table thead tr {
+            border-bottom: 1px solid var(--border2);
+        }
+        .proc-table th {
+            font-family: var(--mono);
+            font-size: 0.62rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--muted);
+            padding: 6px 8px;
+            text-align: left;
+        }
+        .proc-table td {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            padding: 7px 8px;
+            border-bottom: 1px solid rgba(26,37,53,0.6);
+            color: var(--text);
+        }
+        .proc-table tr:last-child td { border-bottom: none; }
+        .proc-table tr:hover td { background: rgba(0,212,255,0.03); }
+
+        .proc-name {
+            color: var(--accent);
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .proc-bar-cell { width: 80px; }
+        .mini-bar {
+            height: 4px;
+            background: var(--border2);
+            border-radius: 0;
+            overflow: hidden;
+        }
+        .mini-bar-fill {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+        .fill-mem { background: var(--purple); }
+        .fill-cpu { background: var(--amber); }
+
+        .rank-num {
+            color: var(--muted);
+            font-size: 0.65rem;
+        }
+
+        /* ─── ALERTS PANEL ───────────────────────────────────────── */
+        .alerts-scroll {
+            max-height: 260px;
+            overflow-y: auto;
+        }
+        .alerts-scroll::-webkit-scrollbar { width: 4px; }
+        .alerts-scroll::-webkit-scrollbar-track { background: transparent; }
+        .alerts-scroll::-webkit-scrollbar-thumb { background: var(--border2); }
+
+        .alert-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 8px 10px;
+            border-left: 2px solid transparent;
+            margin-bottom: 4px;
+            background: rgba(13,21,32,0.6);
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-4px); } to { opacity: 1; transform: none; } }
+
+        .alert-item.WARNING  { border-color: var(--amber); }
+        .alert-item.CRITICAL { border-color: var(--red); background: rgba(255,59,59,0.05); }
+        .alert-item.INFO     { border-color: var(--accent); }
+
+        .alert-level {
+            font-size: 0.6rem;
+            padding: 1px 5px;
+            border-radius: 1px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .alert-item.WARNING  .alert-level { background: rgba(255,179,0,0.15); color: var(--amber); }
+        .alert-item.CRITICAL .alert-level { background: rgba(255,59,59,0.2); color: var(--red); }
+        .alert-item.INFO     .alert-level { background: rgba(0,212,255,0.1); color: var(--accent); }
+
+        .alert-msg { color: var(--text); line-height: 1.4; }
+        .alert-type { color: var(--muted); font-size: 0.65rem; margin-top: 1px; }
+
+        .alert-count-badge {
+            background: var(--red);
+            color: #fff;
+            font-family: var(--mono);
+            font-size: 0.65rem;
+            padding: 1px 7px;
+            border-radius: 10px;
+        }
+
+        /* ─── LOGS ───────────────────────────────────────────────── */
+        .log-scroll {
+            height: 200px;
+            overflow-y: auto;
+            font-family: var(--mono);
+            font-size: 0.72rem;
+            color: var(--green);
+            padding: 10px;
+            background: #000;
+            border: 1px solid var(--border);
+            line-height: 1.7;
+        }
+        .log-scroll::-webkit-scrollbar { width: 4px; }
+        .log-scroll::-webkit-scrollbar-thumb { background: var(--border2); }
+
+        .log-entry-alert { color: var(--red); }
+        .log-entry-warn { color: var(--amber); }
+
+        /* ─── SUMMARY ROW ────────────────────────────────────────── */
+        .summary-row {
+            display: grid;
+            grid-template-columns: 1fr;
+            margin-bottom: 20px;
+        }
+
+        /* ─── RESPONSIVE ─────────────────────────────────────────── */
+        @media (max-width: 1100px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .mid-grid { grid-template-columns: 1fr; }
+            .bottom-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 700px) {
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .bottom-grid { grid-template-columns: 1fr; }
+        }
+
+        /* ─── NO DATA ────────────────────────────────────────────── */
+        .no-data {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            color: var(--muted);
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* corner decorations */
+        .corner-deco {
+            position: relative;
+        }
+        .corner-deco::before, .corner-deco::after {
+            content: '';
+            position: absolute;
+            width: 6px; height: 6px;
+            border-color: var(--accent);
+            border-style: solid;
+        }
+        .corner-deco::before { top: 0; left: 0; border-width: 1px 0 0 1px; }
+        .corner-deco::after  { bottom: 0; right: 0; border-width: 0 1px 1px 0; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><span class="status-dot"></span> System Monitor</h1>
-            <div id="timestamp" style="color: #64748b;">Waiting for data...</div>
-        </header>
+<div class="app">
 
-        <div class="grid">
-            <div class="card" id="cpu-card">
-                <h3>CPU Usage</h3>
-                <span class="value" id="cpu-val">0</span><span class="unit">%</span>
-            </div>
-            <div class="card" id="mem-card">
-                <h3>Memory Usage</h3>
-                <span class="value" id="mem-val">0</span><span class="unit">%</span>
-            </div>
-            <div class="card" id="temp-card">
-                <h3>Temperature</h3>
-                <span class="value" id="temp-val">0</span><span class="unit">°C</span>
-            </div>
-            <div class="card">
-                <h3>GPU</h3>
-                <p id="gpuName">Loading...</p>
-                <p id="gpuUsage">0%</p>
-            </div>
+    <!-- ── HEADER ─────────────────────────────────────────────── -->
+    <header class="header">
+        <div class="header-left">
+            <div class="logo">SECURITY<span>-MONITOR</span> PRO</div>
+            <div class="badge">v2.0</div>
+            <div class="badge" style="border-color:var(--red);color:var(--red);">LIVE</div>
         </div>
-
-        <div class="chart-container">
-            <canvas id="mainChart"></canvas>
+        <div class="header-right">
+            <div class="live-indicator">
+                <div class="live-dot"></div>
+                MONITORING ACTIVE
+            </div>
+            <div id="timestamp">--:--:--</div>
         </div>
+    </header>
 
-        <h3>Recent Logs</h3>
-        <div class="logs" id="log-box">
-            Loading logs...
+    <!-- ── STAT CARDS ─────────────────────────────────────────── -->
+    <div class="stats-row">
+        <div class="stat-card corner-deco" id="cpu-card" style="--bar-color:var(--accent)">
+            <div class="stat-label">// CPU Usage</div>
+            <div><span class="stat-value" id="cpu-val">0</span><span class="stat-unit">%</span></div>
+            <div class="stat-sub" id="cpu-sub">Normal</div>
+        </div>
+        <div class="stat-card corner-deco" id="mem-card" style="--bar-color:var(--purple)">
+            <div class="stat-label">// Memory</div>
+            <div><span class="stat-value" id="mem-val">0</span><span class="stat-unit">%</span></div>
+            <div class="stat-sub" id="mem-sub">Normal</div>
+        </div>
+        <div class="stat-card corner-deco" id="temp-card" style="--bar-color:var(--amber)">
+            <div class="stat-label">// Temperature</div>
+            <div><span class="stat-value" id="temp-val">0</span><span class="stat-unit">°C</span></div>
+            <div class="stat-sub" id="temp-sub">Normal</div>
+        </div>
+        <div class="stat-card corner-deco" style="--bar-color:var(--green)">
+            <div class="stat-label">// Active Alerts</div>
+            <div><span class="stat-value" id="alert-count-val" style="color:var(--green)">0</span></div>
+            <div class="stat-sub" id="alert-sub">No threats</div>
         </div>
     </div>
 
-    <script>
-        // Setup Chart.js
-        const ctx = document.getElementById('mainChart').getContext('2d');
-        const mainChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [
-                    { label: 'CPU %', data: [], borderColor: '#3b82f6', tension: 0.4 },
-                    { label: 'Memory %', data: [], borderColor: '#8b5cf6', tension: 0.4 }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: { y: { beginAtZero: true, max: 100 } },
-                animation: false // Disable animation for smoother realtime updates
-            }
-        });
+    <!-- ── MID GRID: CHART + GPU ──────────────────────────────── -->
+    <div class="mid-grid">
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">// Performance Timeline</span>
+                <span style="font-family:var(--mono);font-size:0.65rem;color:var(--muted)">LAST 20 READINGS</span>
+            </div>
+            <div class="panel-body">
+                <div class="chart-wrap">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
 
-        // Function to update data
-        async function updateDashboard() {
-            try {
-                // Fetch Metrics
-                const res = await fetch('/api/metrics');
-                const data = await res.json();
+        <div class="panel gpu-panel">
+            <div class="panel-header">
+                <span class="panel-title">// GPU Unit</span>
+            </div>
+            <div class="gpu-info">
+                <div class="stat-label">DETECTED DEVICE</div>
+                <div class="gpu-name" id="gpu-name">Scanning...</div>
+                <div class="gpu-status-badge" id="gpu-badge">
+                    <div class="live-dot" style="width:6px;height:6px"></div>
+                    <span id="gpu-status-text">DETECTED</span>
+                </div>
+                <div class="gpu-usage-bar" style="margin-top:20px;">
+                    <div class="bar-label">
+                        <span>GPU UTILIZATION</span>
+                        <span id="gpu-usage-val">N/A</span>
+                    </div>
+                    <div class="bar-track">
+                        <div class="bar-fill" id="gpu-bar" style="width:0%"></div>
+                    </div>
+                </div>
+            </div>
 
-                // Update Values
-                document.getElementById('timestamp').innerText = data.timestamp;
-                document.getElementById('cpu-val').innerText = data.cpu;
-                document.getElementById('mem-val').innerText = data.memory;
-                document.getElementById('temp-val').innerText = typeof data.temperature === 'number' ? data.temperature.toFixed(1) : data.temperature;
-                document.getElementById("gpuName").innerText = data.gpu_name;
-                document.getElementById("gpuUsage").innerText = data.gpu_usage !== null ? data.gpu_usage + "%" : "N/A";
+            <div style="border-top:1px solid var(--border); padding: 14px 18px;">
+                <div class="stat-label" style="margin-bottom:10px;">SYSTEM MEMORY PRESSURE</div>
+                <div class="bar-label">
+                    <span>RAM Used</span>
+                    <span id="mem-bar-val">0%</span>
+                </div>
+                <div class="bar-track" style="height:8px">
+                    <div class="bar-fill" id="mem-pressure-bar" style="width:0%;background:var(--purple);box-shadow:0 0 6px var(--purple)"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- ── BOTTOM GRID: PROCESSES + ALERTS ────────────────────── -->
+    <div class="bottom-grid">
 
-                // Update Chart
-                const timeLabel = data.timestamp.split(' ')[1]; // Get HH:MM:SS
-                
-                if (mainChart.data.labels.length > 20) {
-                    mainChart.data.labels.shift();
-                    mainChart.data.datasets[0].data.shift();
-                    mainChart.data.datasets[1].data.shift();
+        <!-- Top Memory Processes -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">// Top Memory Consumers</span>
+                <span style="font-family:var(--mono);font-size:0.65rem;color:var(--purple)">RAM ↑</span>
+            </div>
+            <div class="panel-body" style="padding:10px 14px;">
+                <table class="proc-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Process</th>
+                            <th>PID</th>
+                            <th>Memory</th>
+                            <th class="proc-bar-cell">Usage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mem-proc-tbody">
+                        <tr><td colspan="5" class="no-data">Waiting for data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Top CPU Processes -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">// Top CPU Consumers</span>
+                <span style="font-family:var(--mono);font-size:0.65rem;color:var(--amber)">CPU ↑</span>
+            </div>
+            <div class="panel-body" style="padding:10px 14px;">
+                <table class="proc-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Process</th>
+                            <th>PID</th>
+                            <th>CPU %</th>
+                            <th class="proc-bar-cell">Usage</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cpu-proc-tbody">
+                        <tr><td colspan="5" class="no-data">Waiting for data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Alerts Panel -->
+        <div class="panel">
+            <div class="panel-header">
+                <span class="panel-title">// Security Alerts</span>
+                <span class="alert-count-badge" id="alert-badge">0</span>
+            </div>
+            <div class="panel-body" style="padding:8px 10px;">
+                <div class="alerts-scroll" id="alerts-container">
+                    <div class="no-data">No alerts detected</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── LOG STREAM ──────────────────────────────────────────── -->
+    <div class="panel summary-row">
+        <div class="panel-header">
+            <span class="panel-title">// System Log Stream</span>
+            <span style="font-family:var(--mono);font-size:0.65rem;color:var(--muted)">LIVE TAIL</span>
+        </div>
+        <div class="log-scroll" id="log-box">
+            Connecting to log stream...
+        </div>
+    </div>
+
+</div><!-- /app -->
+
+<script>
+    /* ── CHART SETUP ─────────────────────────────────────────── */
+    const ctx = document.getElementById('mainChart').getContext('2d');
+    const mainChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'CPU %',
+                    data: [],
+                    borderColor: '#00d4ff',
+                    backgroundColor: 'rgba(0,212,255,0.06)',
+                    borderWidth: 1.5,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                },
+                {
+                    label: 'Memory %',
+                    data: [],
+                    borderColor: '#a855f7',
+                    backgroundColor: 'rgba(168,85,247,0.06)',
+                    borderWidth: 1.5,
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
                 }
-
-                mainChart.data.labels.push(timeLabel);
-                mainChart.data.datasets[0].data.push(data.cpu);
-                mainChart.data.datasets[1].data.push(data.memory);
-                mainChart.update();
-
-                // Color alerts
-                document.getElementById('cpu-card').style.border = data.cpu_alert ? "1px solid #ef4444" : "1px solid #334155";
-
-            } catch (err) {
-                console.error("Error fetching metrics:", err);
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#4a6080',
+                        font: { family: 'Share Tech Mono', size: 11 },
+                        boxWidth: 12,
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: { color: 'rgba(26,37,53,0.8)' },
+                    ticks: {
+                        color: '#4a6080',
+                        font: { family: 'Share Tech Mono', size: 10 },
+                        callback: v => v + '%'
+                    }
+                },
+                x: {
+                    grid: { color: 'rgba(26,37,53,0.6)' },
+                    ticks: {
+                        color: '#4a6080',
+                        font: { family: 'Share Tech Mono', size: 9 },
+                        maxRotation: 0,
+                        maxTicksLimit: 6,
+                    }
+                }
             }
         }
+    });
 
-        async function updateLogs() {
-            try {
-                const res = await fetch('/api/logs');
-                const logs = await res.json();
-                const logBox = document.getElementById('log-box');
-                logBox.innerHTML = logs.join('<br>');
-                logBox.scrollTop = logBox.scrollHeight;
-            } catch (err) {}
+    /* ── HELPERS ─────────────────────────────────────────────── */
+    function setStatCard(cardId, valueId, subId, value, limit, unit='%', subNormal='Normal') {
+        const card = document.getElementById(cardId);
+        const val  = document.getElementById(valueId);
+        const sub  = document.getElementById(subId);
+
+        val.textContent = value;
+        card.style.setProperty('--fill', Math.min(value, 100) + '%');
+
+        if (value > limit) {
+            card.className = 'stat-card corner-deco critical';
+            val.className = 'stat-value crit';
+            sub.textContent = '⚠ THRESHOLD EXCEEDED';
+            sub.style.color = 'var(--red)';
+        } else if (value > limit * 0.8) {
+            card.className = 'stat-card corner-deco warning';
+            val.className = 'stat-value warn';
+            sub.textContent = '⚡ Elevated';
+            sub.style.color = 'var(--amber)';
+        } else {
+            card.className = 'stat-card corner-deco';
+            val.className = 'stat-value';
+            sub.textContent = subNormal;
+            sub.style.color = 'var(--muted)';
+        }
+    }
+
+    /* ── RENDER PROCESS TABLE ────────────────────────────────── */
+    function renderProcTable(tbodyId, rows, valueKey, unit, maxVal, fillClass) {
+        const tbody = document.getElementById(tbodyId);
+        if (!rows || rows.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="no-data">No data</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = rows.map((p, i) => {
+            const val   = (p[valueKey] || 0);
+            const pct   = Math.min((val / maxVal) * 100, 100);
+            const name  = (p.name || 'unknown');
+            const display = unit === 'MB' ? val.toFixed(0) + ' MB' : val.toFixed(1) + '%';
+
+            // Colour the name if it looks heavy
+            const nameColor = (pct > 70) ? 'var(--red)' : (pct > 40) ? 'var(--amber)' : 'var(--accent)';
+
+            return `<tr>
+                <td class="rank-num">${i + 1}</td>
+                <td class="proc-name" style="color:${nameColor}" title="${name}">${name}</td>
+                <td style="color:var(--muted)">${p.pid}</td>
+                <td style="font-family:var(--mono);font-size:0.75rem">${display}</td>
+                <td class="proc-bar-cell">
+                    <div class="mini-bar">
+                        <div class="mini-bar-fill ${fillClass}" style="width:${pct}%"></div>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    /* ── RENDER ALERTS ───────────────────────────────────────── */
+    function renderAlerts(alerts) {
+        const container = document.getElementById('alerts-container');
+        const badge     = document.getElementById('alert-badge');
+        const countEl   = document.getElementById('alert-count-val');
+        const subEl     = document.getElementById('alert-sub');
+
+        badge.textContent = alerts.length;
+        countEl.textContent = alerts.length;
+
+        const criticals = alerts.filter(a => a.level === 'CRITICAL').length;
+        const warnings  = alerts.filter(a => a.level === 'WARNING').length;
+
+        if (criticals > 0) {
+            countEl.style.color = 'var(--red)';
+            subEl.textContent = `${criticals} critical · ${warnings} warnings`;
+            subEl.style.color = 'var(--red)';
+        } else if (warnings > 0) {
+            countEl.style.color = 'var(--amber)';
+            subEl.textContent = `${warnings} warnings`;
+            subEl.style.color = 'var(--amber)';
+        } else {
+            countEl.style.color = 'var(--green)';
+            subEl.textContent = 'No threats';
+            subEl.style.color = 'var(--muted)';
         }
 
-        // Poll every 2 seconds
-        setInterval(updateDashboard, 2000);
-        setInterval(updateLogs, 5000);
-    </script>
+        if (!alerts || alerts.length === 0) {
+            container.innerHTML = `<div class="no-data">No alerts detected</div>`;
+            return;
+        }
+
+        container.innerHTML = [...alerts].reverse().map(a => `
+            <div class="alert-item ${a.level}">
+                <span class="alert-level">${a.level}</span>
+                <div>
+                    <div class="alert-msg">${a.message}</div>
+                    <div class="alert-type">${a.type} · ${(a.timestamp || '').split(' ')[1] || ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /* ── UPDATE DASHBOARD ────────────────────────────────────── */
+    async function updateDashboard() {
+        try {
+            const res  = await fetch('/api/metrics');
+            const data = await res.json();
+
+            if (!data || data.error) return;
+
+            // Timestamp
+            document.getElementById('timestamp').textContent = data.timestamp || '';
+
+            // Stat cards
+            setStatCard('cpu-card',  'cpu-val',  'cpu-sub',  data.cpu,    80);
+            setStatCard('mem-card',  'mem-val',  'mem-sub',  data.memory, 75);
+            setStatCard('temp-card', 'temp-val', 'temp-sub',
+                typeof data.temperature === 'number' ? parseFloat(data.temperature.toFixed(1)) : 0,
+                70, '°C');
+
+            // Chart
+            const timeLabel = (data.timestamp || '').split(' ')[1] || '';
+            if (mainChart.data.labels.length >= 20) {
+                mainChart.data.labels.shift();
+                mainChart.data.datasets[0].data.shift();
+                mainChart.data.datasets[1].data.shift();
+            }
+            mainChart.data.labels.push(timeLabel);
+            mainChart.data.datasets[0].data.push(data.cpu);
+            mainChart.data.datasets[1].data.push(data.memory);
+            mainChart.update();
+
+            // GPU
+            document.getElementById('gpu-name').textContent = data.gpu_name || 'Not detected';
+            const gpuUsage = data.gpu_usage;
+            if (gpuUsage !== null && gpuUsage !== undefined) {
+                document.getElementById('gpu-usage-val').textContent = gpuUsage.toFixed(1) + '%';
+                document.getElementById('gpu-bar').style.width = Math.min(gpuUsage, 100) + '%';
+            } else {
+                document.getElementById('gpu-usage-val').textContent = 'N/A';
+                document.getElementById('gpu-bar').style.width = '0%';
+            }
+            document.getElementById('gpu-status-text').textContent =
+                (data.gpu_status || 'unknown').toUpperCase();
+
+            // Memory pressure bar
+            document.getElementById('mem-bar-val').textContent = data.memory + '%';
+            document.getElementById('mem-pressure-bar').style.width = data.memory + '%';
+
+            // Top processes
+            if (data.top_processes) {
+                // Filter out System Idle Process from CPU list
+                const cpuList = (data.top_processes.top_cpu || [])
+                    .filter(p => p.name && p.name.toLowerCase() !== 'system idle process')
+                    .slice(0, 5);
+
+                renderProcTable('mem-proc-tbody', data.top_processes.top_memory || [], 'memory', 'MB',  4096, 'fill-mem');
+                renderProcTable('cpu-proc-tbody', cpuList,                               'cpu',    '%',   100,  'fill-cpu');
+            }
+
+            // Alerts
+            renderAlerts(data.alerts || []);
+
+        } catch (err) {
+            console.error('Dashboard fetch error:', err);
+        }
+    }
+
+    async function updateLogs() {
+        try {
+            const res  = await fetch('/api/logs');
+            const logs = await res.json();
+            const box  = document.getElementById('log-box');
+            box.innerHTML = logs.map(line => {
+                const l = (line || '').trim();
+                if (l.includes('CRITICAL')) return `<div class="log-entry-alert">${l}</div>`;
+                if (l.includes('WARNING') || l.includes('ALERT')) return `<div class="log-entry-warn">${l}</div>`;
+                return `<div>${l}</div>`;
+            }).join('');
+            box.scrollTop = box.scrollHeight;
+        } catch {}
+    }
+
+    /* ── POLLING ─────────────────────────────────────────────── */
+    updateDashboard();
+    updateLogs();
+    setInterval(updateDashboard, 2000);
+    setInterval(updateLogs, 5000);
+</script>
 </body>
 </html>

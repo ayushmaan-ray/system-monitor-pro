@@ -39,7 +39,11 @@ def get_gpu_windows():
         ).decode()
 
         gpu_names = [line.strip() for line in name_output.split("\n") if line.strip()]
-        gpu_name = gpu_names[0] if gpu_names else "Unknown"
+        # Prefer dedicated GPU over integrated
+        gpu_name = next(
+            (g for g in gpu_names if "nvidia" in g.lower() or "amd" in g.lower()),
+            gpu_names[0] if gpu_names else "Unknown"
+        )
 
         usage_output = subprocess.check_output(
             [
@@ -64,7 +68,6 @@ def get_gpu_windows():
             "gpu_name": gpu_name if 'gpu_name' in locals() else "Unknown",
             "gpu_usage": None
         }
-
 
 
 def get_gpu_linux():
